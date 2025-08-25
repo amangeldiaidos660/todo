@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo Календарь</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Todo Календарь</h1>
+        
+        <!-- Навигация по месяцам -->
+        <div class="row mb-4">
+            <div class="col-md-6 offset-md-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-outline-primary" id="prevMonth">
+                        <i class="bi bi-chevron-left"></i> Предыдущий
+                    </button>
+                    <h3 id="currentMonth" class="mb-0"></h3>
+                    <button class="btn btn-outline-primary" id="nextMonth">
+                        Следующий <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Календарь -->
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="row text-center">
+                            <div class="col">Пн</div>
+                            <div class="col">Вт</div>
+                            <div class="col">Ср</div>
+                            <div class="col">Чт</div>
+                            <div class="col">Пт</div>
+                            <div class="col">Сб</div>
+                            <div class="col">Вс</div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="calendarGrid" class="calendar-grid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Кнопка добавления задачи -->
+        <div class="row mt-4">
+            <div class="col-md-6 offset-md-3 text-center">
+                <button class="btn btn-success btn-lg me-3" id="addTaskBtn">
+                    <i class="bi bi-plus-circle"></i> Добавить задачу
+                </button>
+                <button class="btn btn-info btn-lg" id="showDatabaseBtn">
+                    <i class="bi bi-database"></i> База данных
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления задачи -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить задачу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addTaskForm">
+                        <div class="mb-3">
+                            <label for="taskTitle" class="form-label">Заголовок *</label>
+                            <input type="text" class="form-control" id="taskTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="taskDescription" class="form-label">Описание</label>
+                            <textarea class="form-control" id="taskDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="taskDate" class="form-label">Дата *</label>
+                            <input type="date" class="form-control" id="taskDate" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" id="saveTaskBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно просмотра задач дня -->
+    <div class="modal fade" id="dayTasksModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dayTasksTitle">Задачи на день</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="dayTasksList"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="database.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

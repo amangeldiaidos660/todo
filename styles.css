@@ -1,0 +1,145 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #dee2e6;
+}
+
+.calendar-day {
+    background-color: white;
+    min-height: 100px;
+    padding: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: relative;
+}
+
+.calendar-day:hover {
+    background-color: #e9ecef;
+}
+
+.calendar-day.other-month {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.calendar-day.today {
+    background-color: #e3f2fd;
+    border: 2px solid #2196f3;
+}
+
+.calendar-day.has-tasks {
+    background-color: #fff3cd;
+    border: 2px solid #ffc107;
+}
+
+.calendar-day.has-tasks:hover {
+    background-color: #ffeaa7;
+}
+
+.calendar-day.all-tasks-completed {
+    background-color: #d4edda;
+    border: 2px solid #28a745;
+}
+
+.calendar-day.all-tasks-completed:hover {
+    background-color: #c3e6cb;
+}
+
+.day-number {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.task-indicator {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    background-color: #dc3545;
+    border-radius: 50%;
+}
+
+.task-count {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.task-item {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.task-item.completed {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    opacity: 0.7;
+}
+
+.task-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.task-description {
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.task-date {
+    color: #495057;
+    font-size: 0.9em;
+}
+
+.task-actions {
+    margin-top: 10px;
+}
+
+.btn-sm {
+    margin-right: 5px;
+}
+
+.empty-day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6c757d;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .calendar-day {
+        min-height: 80px;
+        padding: 5px;
+    }
+    
+    .day-number {
+        font-size: 0.9em;
+    }
+    
+    .task-count {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+    }
+}
