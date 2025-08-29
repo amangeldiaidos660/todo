@@ -127,6 +127,50 @@ body {
     font-style: italic;
 }
 
+/* Боковая панель расписания */
+.schedule-sidebar {
+    top: 20px;
+}
+
+.sticky-top {
+    top: 20px;
+}
+
+/* Бейджи и цвета для расписания */
+.badge-time {
+    background-color: #e3f2fd;
+    color: #0d6efd;
+    border: 1px solid #90caf9;
+}
+
+.badge-room {
+    background-color: #fff3cd;
+    color: #8a6d3b;
+    border: 1px solid #ffecb5;
+}
+
+.badge-teacher {
+    background-color: #e2e3e5;
+    color: #495057;
+    border: 1px solid #d3d6d8;
+}
+
+.schedule-item {
+    border-left: 4px solid #0d6efd;
+    background: #f8f9fa;
+}
+
+.schedule-item.math { border-left-color: #0d6efd; }
+.schedule-item.physics { border-left-color: #6610f2; }
+.schedule-item.chemistry { border-left-color: #d63384; }
+.schedule-item.lang { border-left-color: #20c997; }
+
+/* Мелкий серый текст подсказок */
+.text-hint {
+    font-size: 12px;
+    color: #6c757d;
+}
+
 @media (max-width: 768px) {
     .calendar-day {
         min-height: 80px;

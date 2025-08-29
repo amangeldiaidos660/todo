@@ -2,7 +2,9 @@
 class TaskDatabase {
     constructor() {
         this.storageKey = 'todo_tasks';
+        this.scheduleKey = 'todo_schedule';
         this.tasks = this.loadTasks();
+        this.schedule = this.loadSchedule();
     }
 
     // Загрузка задач из localStorage
@@ -19,12 +21,35 @@ class TaskDatabase {
         return [];
     }
 
+    // Загрузка расписания
+    loadSchedule() {
+        const stored = localStorage.getItem(this.scheduleKey);
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {
+                console.error('Ошибка загрузки расписания:', e);
+                return [];
+            }
+        }
+        return [];
+    }
+
     // Сохранение задач в localStorage
     saveTasks() {
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this.tasks));
         } catch (e) {
             console.error('Ошибка сохранения задач:', e);
+        }
+    }
+
+    // Сохранение расписания
+    saveSchedule() {
+        try {
+            localStorage.setItem(this.scheduleKey, JSON.stringify(this.schedule));
+        } catch (e) {
+            console.error('Ошибка сохранения расписания:', e);
         }
     }
 
@@ -115,6 +140,63 @@ class TaskDatabase {
         }
         
         return datesWithTasks;
+    }
+
+    // ---------- Расписание (Schedule) ----------
+    // Элемент расписания: { id, subject, weekday (0-6, 0-Пн), startTime, endTime, teacher, room }
+
+    addSchedule(entry) {
+        const newEntry = {
+            id: Date.now() + Math.random(),
+            subject: entry.subject.trim(),
+            weekday: Number(entry.weekday),
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            teacher: (entry.teacher || '').trim(),
+            room: (entry.room || '').trim()
+        };
+        this.schedule.push(newEntry);
+        this.saveSchedule();
+        return newEntry;
+    }
+
+    getAllSchedule() {
+        return this.schedule;
+    }
+
+    getScheduleByWeekday(weekday) {
+        return this.schedule
+            .filter(s => s.weekday === Number(weekday))
+            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
+
+    getScheduleById(id) {
+        return this.schedule.find(s => s.id === id);
+    }
+
+    updateSchedule(id, updates) {
+        const idx = this.schedule.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            this.schedule[idx] = { ...this.schedule[idx], ...updates };
+            this.saveSchedule();
+            return this.schedule[idx];
+        }
+        return null;
+    }
+
+    deleteSchedule(id) {
+        const idx = this.schedule.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            const removed = this.schedule.splice(idx, 1)[0];
+            this.saveSchedule();
+            return removed;
+        }
+        return null;
+    }
+
+    clearSchedule() {
+        this.schedule = [];
+        this.saveSchedule();
     }
 
     // Форматирование даты для хранения (YYYY-MM-DD)

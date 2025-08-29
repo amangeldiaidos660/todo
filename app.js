@@ -13,6 +13,9 @@ class TodoCalendar {
         this.renderCalendar();
         this.updateMonthDisplay();
         this.setTodayDate();
+        this.renderWeeklySchedule();
+        this.renderWeeklyScheduleDesktop();
+        this.refreshScheduleList();
     }
 
     // Привязка событий
@@ -47,10 +50,38 @@ class TodoCalendar {
             this.saveTask();
         });
 
-        // Установка текущей даты при открытии модального окна
+        // Установка текущей даты при открытии модального окна и подсказка расписания
         document.getElementById('addTaskModal').addEventListener('show.bs.modal', () => {
             this.setModalCurrentDate();
+            this.updateScheduleHint();
         });
+
+        // Обновление подсказки при изменении даты в форме задачи
+        document.getElementById('taskDate').addEventListener('change', () => {
+            this.updateScheduleHint();
+        });
+
+        // Расписание: обработчик сохранения
+        document.getElementById('scheduleForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveScheduleEntry();
+        });
+
+        // Расписание: сохранение через кнопки модалки
+        document.getElementById('schedSaveBtn').addEventListener('click', () => this.saveScheduleEntry());
+        document.getElementById('schedUpdateBtn').addEventListener('click', () => this.saveScheduleEntry());
+        
+        // При клике на кнопку "Добавить занятие" сбрасываем форму (режим добавления)
+        const openScheduleBtn = document.getElementById('openScheduleModalBtn');
+        if (openScheduleBtn) {
+            openScheduleBtn.addEventListener('click', () => this.resetScheduleForm());
+        }
+        
+        // Расписание: отмена редактирования
+        const cancelEditBtn = document.getElementById('schedCancelEditBtn');
+        if (cancelEditBtn) {
+            cancelEditBtn.addEventListener('click', () => this.resetScheduleForm());
+        }
     }
 
     // Переход к предыдущему месяцу
@@ -537,6 +568,219 @@ class TodoCalendar {
         dbModal.addEventListener('hidden.bs.modal', () => {
             dbModal.remove();
         });
+    }
+
+    // ---------- Подсказка расписания в модальном окне задачи ----------
+    updateScheduleHint() {
+        const dateStr = document.getElementById('taskDate').value;
+        const hintEl = document.getElementById('scheduleHint');
+        if (!dateStr || !hintEl) return;
+        const date = new Date(dateStr);
+        // В JS: 0-Вс...6-Сб. Нам нужно 0-Пн...
+        const jsDow = date.getDay();
+        const weekday = (jsDow + 6) % 7; // 0-Пн, 6-Вс
+        const entries = window.taskDB.getScheduleByWeekday(weekday);
+        if (entries.length === 0) {
+            hintEl.textContent = 'В этот день занятий нет (выходной).';
+            hintEl.classList.add('text-muted');
+            return;
+        }
+        const parts = entries.map(e => `${e.startTime}-${e.endTime} ${e.subject}${e.room ? ' ('+e.room+')' : ''}${e.teacher ? ' — '+e.teacher : ''}`);
+        hintEl.textContent = `В этот день занятия: ${parts.join('; ')}`;
+        hintEl.classList.add('text-muted');
+    }
+
+    // ---------- Расписание: сохранение/редактирование ----------
+    saveScheduleEntry() {
+        const subject = document.getElementById('schedSubject').value.trim();
+        const weekday = document.getElementById('schedWeekday').value;
+        const startTime = document.getElementById('schedStart').value;
+        const endTime = document.getElementById('schedEnd').value;
+        const teacher = document.getElementById('schedTeacher').value.trim();
+        const room = document.getElementById('schedRoom').value.trim();
+        const updateBtn = document.getElementById('schedUpdateBtn');
+        const saveBtn = document.getElementById('schedSaveBtn');
+
+        if (!subject || !startTime || !endTime) {
+            alert('Заполните предмет, время начала и конца.');
+            return;
+        }
+
+        const editingId = updateBtn.dataset.editingId;
+        if (editingId) {
+            window.taskDB.updateSchedule(Number(editingId), { subject, weekday: Number(weekday), startTime, endTime, teacher, room });
+            this.showNotification('Запись расписания обновлена', 'success');
+        } else {
+            window.taskDB.addSchedule({ subject, weekday, startTime, endTime, teacher, room });
+            this.showNotification('Запись расписания добавлена', 'success');
+        }
+
+        // закрыть модалку
+        const modal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
+        modal.hide();
+
+        this.resetScheduleForm();
+        this.renderWeeklySchedule();
+        this.renderWeeklyScheduleDesktop();
+    }
+
+    resetScheduleForm() {
+        document.getElementById('scheduleForm').reset();
+        const updateBtn = document.getElementById('schedUpdateBtn');
+        const saveBtn = document.getElementById('schedSaveBtn');
+        updateBtn.classList.add('d-none');
+        saveBtn.classList.remove('d-none');
+        delete updateBtn.dataset.editingId;
+        document.getElementById('scheduleModalTitle').textContent = 'Добавить занятие';
+    }
+
+    startEditSchedule(id) {
+        const entry = window.taskDB.getScheduleById(id);
+        if (!entry) return;
+        document.getElementById('schedSubject').value = entry.subject;
+        document.getElementById('schedWeekday').value = String(entry.weekday);
+        document.getElementById('schedStart').value = entry.startTime;
+        document.getElementById('schedEnd').value = entry.endTime;
+        document.getElementById('schedTeacher').value = entry.teacher || '';
+        document.getElementById('schedRoom').value = entry.room || '';
+        const updateBtn = document.getElementById('schedUpdateBtn');
+        const saveBtn = document.getElementById('schedSaveBtn');
+        updateBtn.classList.remove('d-none');
+        saveBtn.classList.add('d-none');
+        updateBtn.dataset.editingId = String(entry.id);
+        document.getElementById('scheduleModalTitle').textContent = 'Редактировать занятие';
+        const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+        modal.show();
+    }
+
+    deleteSchedule(id) {
+        if (confirm('Удалить запись расписания?')) {
+            window.taskDB.deleteSchedule(id);
+            this.refreshScheduleList();
+            this.renderWeeklySchedule();
+            this.renderWeeklyScheduleDesktop();
+            this.showNotification('Запись удалена', 'warning');
+        }
+    }
+
+    // Рендер списка записей в оффканвасе
+    refreshScheduleList() {
+        const listEl = document.getElementById('scheduleList');
+        if (!listEl) return;
+        const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+        const all = window.taskDB.getAllSchedule().slice().sort((a,b)=> a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));
+        if (all.length === 0) {
+            listEl.innerHTML = '<div class="text-muted">Пока нет записей</div>';
+            return;
+        }
+        listEl.innerHTML = '';
+        all.forEach(e => {
+            const item = document.createElement('div');
+            item.className = 'border rounded p-2 mb-2';
+            item.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge badge-time me-2">${e.startTime}-${e.endTime}</span>
+                        <strong>${e.subject}</strong>
+                        <span class="text-muted ms-2" style="font-size:12px;">${days[e.weekday]}</span>
+                        ${e.room ? `<span class=\"badge badge-room ms-2\">Каб. ${e.room}</span>` : ''}
+                        ${e.teacher ? `<span class=\"badge badge-teacher ms-2\">${e.teacher}</span>` : ''}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2">Редактировать</button>
+                        <button class="btn btn-sm btn-outline-danger">Удалить</button>
+                    </div>
+                </div>`;
+            const [editBtn, delBtn] = item.querySelectorAll('button');
+            editBtn.addEventListener('click', () => this.startEditSchedule(e.id));
+            delBtn.addEventListener('click', () => this.deleteSchedule(e.id));
+            listEl.appendChild(item);
+        });
+    }
+
+    // Рендер недельного расписания
+    renderWeeklySchedule() {
+        const container = document.getElementById('weeklySchedule');
+        if (!container) return;
+        const daysFull = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+        container.innerHTML = '';
+        for (let d = 0; d < 7; d++) {
+            const entries = window.taskDB.getScheduleByWeekday(d);
+            const header = document.createElement('h6');
+            header.textContent = daysFull[d];
+            container.appendChild(header);
+            if (entries.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-muted ms-2';
+                empty.textContent = 'Выходной';
+                container.appendChild(empty);
+            } else {
+                const list = document.createElement('div');
+                list.className = 'ms-2';
+                entries.forEach(e => {
+                    const row = document.createElement('div');
+                    row.className = 'schedule-item border rounded p-2 mb-2 d-flex justify-content-between align-items-center';
+                    row.innerHTML = `
+                        <div>
+                            <span class="badge badge-time me-2">${e.startTime}-${e.endTime}</span>
+                            <strong>${e.subject}</strong>
+                            ${e.room ? `<span class=\"badge badge-room ms-2\">Каб. ${e.room}</span>` : ''}
+                            ${e.teacher ? `<span class=\"badge badge-teacher ms-2\">${e.teacher}</span>` : ''}
+                        </div>
+                        <div class="text-nowrap">
+                            <button class="btn btn-sm btn-outline-primary me-2" title="Редактировать"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+                        </div>
+                    `;
+                    const [editBtn, delBtn] = row.querySelectorAll('button');
+                    editBtn.addEventListener('click', () => this.startEditSchedule(e.id));
+                    delBtn.addEventListener('click', () => this.deleteSchedule(e.id));
+                    list.appendChild(row);
+                });
+                container.appendChild(list);
+            }
+        }
+    }
+
+    renderWeeklyScheduleDesktop() {
+        const container = document.getElementById('weeklyScheduleDesktop');
+        if (!container) return;
+        const daysFull = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+        container.innerHTML = '';
+        for (let d = 0; d < 7; d++) {
+            const entries = window.taskDB.getScheduleByWeekday(d);
+            const header = document.createElement('div');
+            header.className = 'fw-bold mt-2';
+            header.textContent = daysFull[d];
+            container.appendChild(header);
+            if (entries.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-muted ms-2';
+                empty.textContent = 'Выходной';
+                container.appendChild(empty);
+            } else {
+                entries.forEach(e => {
+                    const row = document.createElement('div');
+                    row.className = 'schedule-item border rounded p-2 mb-2 d-flex justify-content-between align-items-center';
+                    row.innerHTML = `
+                        <div>
+                            <span class="badge badge-time me-2">${e.startTime}-${e.endTime}</span>
+                            <strong>${e.subject}</strong>
+                            ${e.room ? `<span class=\"badge badge-room ms-2\">Каб. ${e.room}</span>` : ''}
+                            ${e.teacher ? `<span class=\"badge badge-teacher ms-2\">${e.teacher}</span>` : ''}
+                        </div>
+                        <div class="text-nowrap">
+                            <button class="btn btn-sm btn-outline-primary me-2" title="Редактировать"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+                        </div>
+                    `;
+                    const [editBtn, delBtn] = row.querySelectorAll('button');
+                    editBtn.addEventListener('click', () => this.startEditSchedule(e.id));
+                    delBtn.addEventListener('click', () => this.deleteSchedule(e.id));
+                    container.appendChild(row);
+                });
+            }
+        }
     }
 }
 
