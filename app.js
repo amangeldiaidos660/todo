@@ -469,6 +469,7 @@ class TodoCalendar {
         const tasks = window.taskDB.getAllTasks();
         const jsonData = window.taskDB.exportTasks();
         const schedule = window.taskDB.getAllSchedule();
+        const scheduleJson = window.taskDB.exportSchedule();
         
         const dbModal = document.createElement('div');
         dbModal.className = 'modal fade';
@@ -484,10 +485,15 @@ class TodoCalendar {
                         <div class="row g-3">
                             <div class="col-lg-6">
                                 <h6>Задачи (${tasks.length})</h6>
-                                <div id="tasksList" class="border p-3" style="max-height: 400px; overflow-y: auto;"></div>
+                                <div id="tasksList" class="border p-3" style="max-height: 300px; overflow-y: auto;"></div>
+                                <div class="mt-2 d-flex gap-2">
+                                    <button class="btn btn-success btn-sm" id="exportTasksBtn">Экспорт задач JSON</button>
+                                    <button class="btn btn-info btn-sm" id="importTasksBtn">Импорт задач JSON</button>
+                                    <button class="btn btn-warning btn-sm" id="clearAllBtn">Очистить задачи</button>
+                                </div>
                                 <div class="mt-2">
                                     <h6>JSON задачи:</h6>
-                                    <pre class="border p-3 bg-light" style="max-height: 300px; overflow-y: auto; font-size: 12px;">${jsonData}</pre>
+                                    <pre class="border p-3 bg-light" style="max-height: 200px; overflow-y: auto; font-size: 12px;">${jsonData}</pre>
                                 </div>
                             </div>
                             <div class="col-lg-6">
@@ -495,14 +501,20 @@ class TodoCalendar {
                                     <h6 class="mb-0">Расписание (${schedule.length})</h6>
                                     <div class="small text-muted">Текущий день сначала</div>
                                 </div>
-                                <div id="scheduleDbList" class="border p-3" style="max-height: 700px; overflow-y: auto;"></div>
+                                <div id="scheduleDbList" class="border p-3" style="max-height: 300px; overflow-y: auto;"></div>
+                                <div class="mt-2 d-flex gap-2">
+                                    <button class="btn btn-success btn-sm" id="exportScheduleBtn">Экспорт расписания JSON</button>
+                                    <button class="btn btn-info btn-sm" id="importScheduleBtn">Импорт расписания JSON</button>
+                                    <button class="btn btn-outline-warning btn-sm" id="clearScheduleBtn">Очистить расписание</button>
+                                </div>
+                                <div class="mt-2">
+                                    <h6>JSON расписания:</h6>
+                                    <pre class="border p-3 bg-light" style="max-height: 200px; overflow-y: auto; font-size: 12px;">${scheduleJson}</pre>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-success me-2" id="exportBtn">Экспорт задач JSON</button>
-                        <button class="btn btn-warning me-2" id="clearAllBtn">Очистить задачи</button>
-                        <button class="btn btn-info" id="importBtn">Импорт задач JSON</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                     </div>
                 </div>
@@ -513,7 +525,7 @@ class TodoCalendar {
         const modal = new bootstrap.Modal(dbModal);
         modal.show();
         
-        // Отображение задач
+        // Отображение задач (как раньше)
         const tasksList = document.getElementById('tasksList');
         if (tasks.length === 0) {
             tasksList.innerHTML = '<p class="text-muted">Задач нет</p>';
@@ -562,7 +574,7 @@ class TodoCalendar {
         });
 
         // Кнопки задач
-        document.getElementById('exportBtn').addEventListener('click', () => {
+        document.getElementById('exportTasksBtn').addEventListener('click', () => {
             const blob = new Blob([jsonData], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -571,18 +583,7 @@ class TodoCalendar {
             a.click();
             URL.revokeObjectURL(url);
         });
-        
-        document.getElementById('clearAllBtn').addEventListener('click', () => {
-            if (confirm('Вы уверены, что хотите удалить ВСЕ задачи? Это действие нельзя отменить!')) {
-                window.taskDB.clearAllTasks();
-                modal.hide();
-                dbModal.remove();
-                this.renderCalendar();
-                this.showNotification('Все задачи удалены!', 'warning');
-            }
-        });
-        
-        document.getElementById('importBtn').addEventListener('click', () => {
+        document.getElementById('importTasksBtn').addEventListener('click', () => {
             const importData = prompt('Вставьте JSON с задачами:');
             if (importData) {
                 if (window.taskDB.importTasks(importData)) {
@@ -595,7 +596,51 @@ class TodoCalendar {
                 }
             }
         });
-        
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if (confirm('Удалить ВСЕ задачи?')) {
+                window.taskDB.clearAllTasks();
+                modal.hide();
+                dbModal.remove();
+                this.renderCalendar();
+                this.showNotification('Все задачи удалены!', 'warning');
+            }
+        });
+
+        // Кнопки расписания
+        document.getElementById('exportScheduleBtn').addEventListener('click', () => {
+            const blob = new Blob([scheduleJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'schedule.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+        document.getElementById('importScheduleBtn').addEventListener('click', () => {
+            const importData = prompt('Вставьте JSON с расписанием:');
+            if (importData) {
+                if (window.taskDB.importSchedule(importData)) {
+                    modal.hide();
+                    dbModal.remove();
+                    this.renderWeeklySchedule();
+                    this.renderWeeklyScheduleDesktop();
+                    this.showNotification('Расписание успешно импортировано!', 'success');
+                } else {
+                    alert('Ошибка импорта. Проверьте формат JSON данных.');
+                }
+            }
+        });
+        document.getElementById('clearScheduleBtn').addEventListener('click', () => {
+            if (confirm('Очистить все записи расписания?')) {
+                window.taskDB.clearSchedule();
+                modal.hide();
+                dbModal.remove();
+                this.renderWeeklySchedule();
+                this.renderWeeklyScheduleDesktop();
+                this.showNotification('Расписание очищено!', 'warning');
+            }
+        });
+
         // Закрытие
         dbModal.addEventListener('hidden.bs.modal', () => dbModal.remove());
     }

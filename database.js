@@ -228,6 +228,11 @@ class TaskDatabase {
         return JSON.stringify(this.tasks, null, 2);
     }
 
+    // Экспорт расписания
+    exportSchedule() {
+        return JSON.stringify(this.schedule, null, 2);
+    }
+
     // Импорт задач
     importTasks(jsonData) {
         try {
@@ -240,6 +245,22 @@ class TaskDatabase {
             return false;
         } catch (e) {
             console.error('Ошибка импорта задач:', e);
+            return false;
+        }
+    }
+
+    // Импорт расписания
+    importSchedule(jsonData) {
+        try {
+            const imported = JSON.parse(jsonData);
+            if (Array.isArray(imported)) {
+                this.schedule = imported;
+                this.saveSchedule();
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.error('Ошибка импорта расписания:', e);
             return false;
         }
     }
