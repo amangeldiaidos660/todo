@@ -468,6 +468,7 @@ class TodoCalendar {
     showDatabase() {
         const tasks = window.taskDB.getAllTasks();
         const jsonData = window.taskDB.exportTasks();
+        const schedule = window.taskDB.getAllSchedule();
         
         const dbModal = document.createElement('div');
         dbModal.className = 'modal fade';
@@ -476,29 +477,32 @@ class TodoCalendar {
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">База данных задач (${tasks.length} задач)</h5>
+                        <h5 class="modal-title">База данных</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <button class="btn btn-success me-2" id="exportBtn">Экспорт JSON</button>
-                            <button class="btn btn-warning me-2" id="clearAllBtn">Очистить все</button>
-                            <button class="btn btn-info" id="importBtn">Импорт JSON</button>
-                        </div>
-                        <div class="mb-3">
-                            <label for="importData" class="form-label">Вставить JSON для импорта:</label>
-                            <textarea class="form-control" id="importData" rows="3" placeholder='[{"title":"Пример","description":"Описание","date":"2024-01-01"}]'></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <h6>Текущие задачи:</h6>
-                            <div id="tasksList" class="border p-3" style="max-height: 400px; overflow-y: auto;"></div>
-                        </div>
-                        <div>
-                            <h6>JSON данные:</h6>
-                            <pre class="border p-3 bg-light" style="max-height: 300px; overflow-y: auto; font-size: 12px;">${jsonData}</pre>
+                        <div class="row g-3">
+                            <div class="col-lg-6">
+                                <h6>Задачи (${tasks.length})</h6>
+                                <div id="tasksList" class="border p-3" style="max-height: 400px; overflow-y: auto;"></div>
+                                <div class="mt-2">
+                                    <h6>JSON задачи:</h6>
+                                    <pre class="border p-3 bg-light" style="max-height: 300px; overflow-y: auto; font-size: 12px;">${jsonData}</pre>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Расписание (${schedule.length})</h6>
+                                    <div class="small text-muted">Текущий день сначала</div>
+                                </div>
+                                <div id="scheduleDbList" class="border p-3" style="max-height: 700px; overflow-y: auto;"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <button class="btn btn-success me-2" id="exportBtn">Экспорт задач JSON</button>
+                        <button class="btn btn-warning me-2" id="clearAllBtn">Очистить задачи</button>
+                        <button class="btn btn-info" id="importBtn">Импорт задач JSON</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                     </div>
                 </div>
@@ -506,11 +510,10 @@ class TodoCalendar {
         `;
         
         document.body.appendChild(dbModal);
-        
         const modal = new bootstrap.Modal(dbModal);
         modal.show();
         
-        // Отображение списка задач
+        // Отображение задач
         const tasksList = document.getElementById('tasksList');
         if (tasks.length === 0) {
             tasksList.innerHTML = '<p class="text-muted">Задач нет</p>';
@@ -526,8 +529,39 @@ class TodoCalendar {
                 tasksList.appendChild(taskDiv);
             });
         }
-        
-        // Обработчики кнопок
+
+        // Отображение расписания
+        const scheduleDbList = document.getElementById('scheduleDbList');
+        const daysFull = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+        const order = this.getWeekOrderStartFromToday();
+        scheduleDbList.innerHTML = '';
+        order.forEach(d => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'fw-bold mt-2';
+            dayHeader.textContent = daysFull[d];
+            scheduleDbList.appendChild(dayHeader);
+            const entries = window.taskDB.getScheduleByWeekday(d);
+            if (entries.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-muted ms-2';
+                empty.textContent = 'Выходной';
+                scheduleDbList.appendChild(empty);
+            } else {
+                entries.forEach(e => {
+                    const row = document.createElement('div');
+                    row.className = 'schedule-item border rounded p-2 mb-2';
+                    row.innerHTML = `
+                        <span class="badge badge-time me-2">${e.startTime}-${e.endTime}</span>
+                        <strong>${e.subject}</strong>
+                        ${e.room ? `<span class=\"badge badge-room ms-2\">Каб. ${e.room}</span>` : ''}
+                        ${e.teacher ? `<span class=\"badge badge-teacher ms-2\">${e.teacher}</span>` : ''}
+                    `;
+                    scheduleDbList.appendChild(row);
+                });
+            }
+        });
+
+        // Кнопки задач
         document.getElementById('exportBtn').addEventListener('click', () => {
             const blob = new Blob([jsonData], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -549,7 +583,7 @@ class TodoCalendar {
         });
         
         document.getElementById('importBtn').addEventListener('click', () => {
-            const importData = document.getElementById('importData').value.trim();
+            const importData = prompt('Вставьте JSON с задачами:');
             if (importData) {
                 if (window.taskDB.importTasks(importData)) {
                     modal.hide();
@@ -559,15 +593,11 @@ class TodoCalendar {
                 } else {
                     alert('Ошибка импорта. Проверьте формат JSON данных.');
                 }
-            } else {
-                alert('Введите JSON данные для импорта.');
             }
         });
         
-        // Удаляем модальное окно при закрытии
-        dbModal.addEventListener('hidden.bs.modal', () => {
-            dbModal.remove();
-        });
+        // Закрытие
+        dbModal.addEventListener('hidden.bs.modal', () => dbModal.remove());
     }
 
     // ---------- Подсказка расписания в модальном окне задачи ----------
@@ -576,18 +606,15 @@ class TodoCalendar {
         const hintEl = document.getElementById('scheduleHint');
         if (!dateStr || !hintEl) return;
         const date = new Date(dateStr);
-        // В JS: 0-Вс...6-Сб. Нам нужно 0-Пн...
         const jsDow = date.getDay();
         const weekday = (jsDow + 6) % 7; // 0-Пн, 6-Вс
         const entries = window.taskDB.getScheduleByWeekday(weekday);
         if (entries.length === 0) {
-            hintEl.textContent = 'В этот день занятий нет (выходной).';
-            hintEl.classList.add('text-muted');
+            hintEl.innerHTML = '<span class="text-hint">В этот день занятий нет (выходной).</span>';
             return;
         }
-        const parts = entries.map(e => `${e.startTime}-${e.endTime} ${e.subject}${e.room ? ' ('+e.room+')' : ''}${e.teacher ? ' — '+e.teacher : ''}`);
-        hintEl.textContent = `В этот день занятия: ${parts.join('; ')}`;
-        hintEl.classList.add('text-muted');
+        const items = entries.map(e => `<li>${e.startTime}-${e.endTime} <strong>${e.subject}</strong>${e.room ? ' (Каб. '+e.room+')' : ''}${e.teacher ? ' — '+e.teacher : ''}</li>`).join('');
+        hintEl.innerHTML = `<div class="text-hint">В этот день занятия:</div><ul class="text-hint ms-3 mt-1">${items}</ul>`;
     }
 
     // ---------- Расписание: сохранение/редактирование ----------
@@ -698,13 +725,23 @@ class TodoCalendar {
         });
     }
 
+    // Возвращает массив индексов дней недели, начиная с текущего дня (0-Пн..6-Вс)
+    getWeekOrderStartFromToday() {
+        const jsDow = new Date().getDay();
+        const today = (jsDow + 6) % 7; // 0-Пн
+        const order = [];
+        for (let i = 0; i < 7; i++) order.push((today + i) % 7);
+        return order;
+    }
+
     // Рендер недельного расписания
     renderWeeklySchedule() {
         const container = document.getElementById('weeklySchedule');
         if (!container) return;
         const daysFull = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
         container.innerHTML = '';
-        for (let d = 0; d < 7; d++) {
+        const order = this.getWeekOrderStartFromToday();
+        order.forEach(d => {
             const entries = window.taskDB.getScheduleByWeekday(d);
             const header = document.createElement('h6');
             header.textContent = daysFull[d];
@@ -739,7 +776,7 @@ class TodoCalendar {
                 });
                 container.appendChild(list);
             }
-        }
+        });
     }
 
     renderWeeklyScheduleDesktop() {
@@ -747,7 +784,8 @@ class TodoCalendar {
         if (!container) return;
         const daysFull = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
         container.innerHTML = '';
-        for (let d = 0; d < 7; d++) {
+        const order = this.getWeekOrderStartFromToday();
+        order.forEach(d => {
             const entries = window.taskDB.getScheduleByWeekday(d);
             const header = document.createElement('div');
             header.className = 'fw-bold mt-2';
@@ -780,7 +818,7 @@ class TodoCalendar {
                     container.appendChild(row);
                 });
             }
-        }
+        });
     }
 }
 
